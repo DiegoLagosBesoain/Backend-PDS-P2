@@ -1,0 +1,20 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "db:init": "DBPASSWORD=$PGPASSWORD psql -h $DBHOST -U $DBUSER -tc \"SELECT 1 FROM pg_database WHERE datname = '$DBDATABASE'\" | grep -q 1 || createdb -h $DBHOST -U $DBUSER PDS && DBPASSWORD=$DBPASSWORD psql -h $DBHOST -U $DBUSER -d $DBDATABASE -f init.sql"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^4.18.2",
+    "pg": "^8.16.3",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}
