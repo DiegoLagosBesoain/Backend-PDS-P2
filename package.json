@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "db:init": "DBPASSWORD=$PGPASSWORD psql -h $DBHOST -U $DBUSER -tc \"SELECT 1 FROM pg_database WHERE datname = '$DBDATABASE'\" | grep -q 1 || createdb -h $DBHOST -U $DBUSER PDS && DBPASSWORD=$DBPASSWORD psql -h $DBHOST -U $DBUSER -d $DBDATABASE -f init.sql"
+   "db:init": "PGPASSWORD=$DBPASSWORD psql -h $DBHOST -U $DBUSER -d $DBDATABASE -f init.sql"
   },
   "dependencies": {
     "cors": "^2.8.5",
