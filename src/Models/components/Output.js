@@ -15,17 +15,28 @@ class Output extends Component {
   receive(elemento, time, entradaId = null) {
     if (this.failed) {
       console.log(`[t=${time}] ⚠️ Output ${this.id} está en falla, NO recibe elemento ${elemento?.id}`);
-      return;
+    return;
     }
 
     if (!elemento || typeof elemento.id === "undefined") {
       console.warn(`[t=${time}] Output recibió algo inválido:`, elemento);
-      return;
+    return;
     }
 
     this.elements.push({ elemento, entradaId });
     this.simulator.register[elemento.id][`${this.id}-${this.type}`]=time
+    if (!this.simulator.steps[time]){
+        this.simulator.steps[time]=[]
+      }
+    this.simulator.steps[time].push(`➕ Output ${this.node.id} recibió elemento ${elemento.id}. Total=${this.elements.length}`)
     console.log(`[t=${time}] ➕ Output ${this.node.id} recibió elemento ${elemento.id}. Total=${this.elements.length}`);
+
+    // ✅ Notificar sensores de entrada (contador, etc.)
+    this.notifySensors("entrada", { 
+      time, 
+      elemento, 
+      port: entradaId || "in-0" 
+    });
 
     // debug extra
     this.elements.forEach(e => {

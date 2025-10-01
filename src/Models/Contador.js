@@ -28,6 +28,11 @@ class Contador extends Sensor {
   tick() {
     this.values.push({ t: this.simulator.clock, value: this.count });
     console.log(`[t=${this.simulator.clock}] ⏱️ Tick de contador (${this.component.id}) → valor registrado = ${this.count}`);
+    if (!this.simulator.steps[this.simulator.clock]){
+              this.simulator.steps[this.simulator.clock]=[]
+        }
+    this.simulator.steps[this.simulator.clock].push(`⏱️ Tick de contador (${this.component.id}) → valor registrado = ${this.count}`)
+    
   }
 
   report() {

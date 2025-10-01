@@ -43,9 +43,9 @@ class Transformer extends Component {
 
   startFailure(failure) {
     this.failed = true;
-    console.log("failure: ", failure)
+    //console.log("failure: ", failure)
     const t_duracion = sampleFromDistribution(failure.dist_duracion);
-    console.log("t_duracion: ", t_duracion)
+    //console.log("t_duracion: ", t_duracion)
     console.log(`[t=${this.simulator.clock}] ❌ Transformer ${this.id} FALLÓ durante ${t_duracion}`);
     this.simulator.schedule(this.simulator.clock + t_duracion, () => this.endFailure(failure));
   }
@@ -134,7 +134,10 @@ class Transformer extends Component {
     const endTime = time + duracion;
 
     console.log(`[t=${time}] ⚙️ Transformer ${this.id} inició proceso, terminará en t=${endTime}`);
-
+    if (!this.simulator.steps[time]){
+              this.simulator.steps[time]=[]
+        }
+    this.simulator.steps[time].push(`⚙️ Transformer ${this.id} inició proceso, terminará en t=${endTime}`)
     this.simulator.schedule(endTime, () => this.finishProcessing(endTime));
   }
 
@@ -175,7 +178,7 @@ finishProcessing(time) {
       };
       outputs.push(elemento);
       // ✅ Notificar sensores de SALIDA
-
+      console.log("elementoTipo: ", elementoTipo)
       this.notifySensors("salida", { port: elementoTipo, elemento });
     }
   });
@@ -209,6 +212,10 @@ finishProcessing(time) {
     });
     this.simulator.register[elemento.id]={"params":elemento.attributes}
     this.simulator.register[elemento.id][`${this.id}-${this.type}`]=time
+    if (!this.simulator.steps[time]){
+              this.simulator.steps[time]=[]
+        }
+    this.simulator.steps[time].push(`Transformer ${this.id} produjo ${elemento.type}`)
     console.log(`[t=${time}] Transformer ${this.id} produjo ${elemento.type}`);
   });
 
@@ -405,7 +412,10 @@ finishProcessing(time) {
     }
   }
 
-
+  isActive() {
+    // Activo si no está fallado y además está procesando un job
+    return !this.failed && this.busy;
+  }
 
 
 

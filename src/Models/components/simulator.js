@@ -9,6 +9,7 @@ class Simulator{
         this.eventQueue = []; //lista de acciones [{tiempo, accion, ...]
         this.elements = [];
         this.register={}//registro del movimiento de cada elemento
+        this.steps={}
         //this.stats = {}//metricas globales
         
     }
@@ -54,17 +55,55 @@ class Simulator{
             this.clock = event.time;
             event.action();
         }
-        console.log(this.register)
+        console.log(this.steps)
         //return this.stats;
+
+
+        return {
+        clock: this.clock,
+        register: this.register,
+        components: this.components,
+        };
+
     }
 
-    shouldStop(){
-        switch (this.ending_condition["type"]){
-            case "tiempo":
-                return this.clock >= this.ending_condition.valor;
-            //AGREGAR MAS TIPOS DE CONDICION DESPUES DE DEFINIRLOS EN EL BOTON DE COMENZAR SIMULACION, LA IDEA ES QUE AL PRESIONAR EL BOTON SE MUESTREN LAS OPCIONES PARA LA SIMULACION.
+    shouldStop() {
+        // 1. Condición de tiempo (siempre aplica)
+        if (this.clock >= (this.ending_condition.valor || Infinity)) {
+            return true;
         }
+
+        // 2. Condición de elementos generados
+        if (this.ending_condition.limits?.maxGenerated != null) {
+            const generated = this.components
+                ? Object.values(this.components).reduce(
+                    (acc, c) => acc + (c.generatedCount || 0),
+                    0
+                )
+                : 0;
+            if (generated >= this.ending_condition.limits.maxGenerated) {
+                return true;
+            }
+        }
+
+        // 3. Condición de elementos en outputs
+        if (this.ending_condition.limits?.maxOutputs != null) {
+            const outputs = this.components
+                ? Object.values(this.components)
+                    .filter(c => c.node?.type === "output")
+                    .reduce(
+                        (acc, c) => acc + (c.elements?.length || 0),
+                        0
+                    )
+                : 0;
+            if (outputs >= this.ending_condition.limits.maxOutputs) {
+                return true;
+            }
+        }
+
+        return false;
     }
+
 }
 
 module.exports = Simulator;

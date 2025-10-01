@@ -24,6 +24,10 @@ class Queue extends Component {
     
     if (this.failed) {
       console.log(`[t=${time}] ⚠️ Queue ${this.id} está en falla, no recibe ${elemento.id}`);
+    if (!this.simulator.steps[time]){
+        this.simulator.steps[time]=[]
+      }
+    this.simulator.steps[time].push(`⚠️ Queue ${this.id} está en falla, no recibe ${elemento.id}`)
       return;
     }
 
@@ -33,11 +37,19 @@ class Queue extends Component {
     }
     if (this.elements.length >= this.capacity) {
       console.log(`[t=${time}] ❌ Queue ${this.id} está llena, se pierde el elemento ${elemento.id}`);
+      if (!this.simulator.steps[time]){
+        this.simulator.steps[time]=[]
+      }
+      this.simulator.steps[time].push(`❌ Queue ${this.id} está llena, se pierde el elemento ${elemento.id}`)
       return;
     }
     this.elements.push({ elemento, entradaId });
-
+    
     console.log(`[t=${time}] ➕ Queue ${this.id} recibió ${elemento.id}. Tamaño actual=${this.elements.length}`);
+    if (!this.simulator.steps[time]){
+        this.simulator.steps[time]=[]
+      }
+    this.simulator.steps[time].push(`➕ Queue ${this.id} recibió ${elemento.id}. Tamaño actual=${this.elements.length}`)
     this.simulator.register[elemento.id][`${this.id}-${this.type}`]=time
     // ✅ Notificar sensores de entrada
     this.notifySensors("entrada", { port: entradaId, elemento });
@@ -87,6 +99,10 @@ class Queue extends Component {
     }
 
     console.log(`[t=${time}] ➖ Queue ${this.id} entregó ${cantidad} elementos. Tamaño actual=${this.elements.length}`);
+    if (!this.simulator.steps[time]){
+        this.simulator.steps[time]=[]
+      }
+    this.simulator.steps[time].push(`➖ Queue ${this.id} entregó ${cantidad} elementos. Tamaño actual=${this.elements.length}`)
     return entregados;
   }
 
@@ -104,7 +120,9 @@ class Queue extends Component {
 
   /** Selección por prioridad según atributo y orden */
   getByPriority() {
+    console.log("prioridades de la fila",this.prioridad,this.prioridad.atributo)
     if (!this.prioridad || !this.prioridad.atributo) {
+      
       return this.elements.shift(); // fallback
     }
 
@@ -116,15 +134,16 @@ class Queue extends Component {
     let bestRank = Infinity;
 
     this.elements.forEach((wrapped, idx) => {
-      const valor = wrapped.elemento[atributo];
+      const valor = wrapped.elemento.attributes[atributo];
       const rank = prioridadMap[valor] ?? Infinity;
       if (rank < bestRank) {
         bestRank = rank;
         bestIdx = idx;
       }
     });
-
-    return this.elements.splice(bestIdx, 1)[0];
+    const elemento=this.elements.splice(bestIdx, 1)[0]
+    console.log("elemento elejido",elemento,this.elements)
+    return elemento;
   }
 }
 

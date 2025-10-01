@@ -14,7 +14,8 @@ const Simulator = require("../Models/components/simulator");
 router.post("/simulation/run", async (req, res) => {
   const client = await pool.connect();
   try {
-    const { processDef, duration, processId } = req.body;
+    const { processDef, duration, processId, limits, timeUnit } = req.body;
+    console.log("timeUnit ", timeUnit)
 
     if (!processDef || !processDef.nodes || !processDef.edges) {
       return res.status(400).json({ error: "processDef inválido" });
@@ -33,7 +34,7 @@ router.post("/simulation/run", async (req, res) => {
     console.log("▶️ Nueva simulación recibida para process:", processId, "duración:", duration);
 
     // Ejecutar simulador (si tu Simulator.run es síncrono o asíncrono)
-    const simulator = new Simulator(processDef, { type: "tiempo", valor: duration });
+    const simulator = new Simulator(processDef, { type: "tiempo", valor: duration, limits: limits || {}});
     // si run es async:
     if (typeof simulator.run === "function") {
       await simulator.run();
@@ -52,10 +53,13 @@ router.post("/simulation/run", async (req, res) => {
         generated: comp.generatedCount ?? undefined,
         sensors: comp.sensors?.map(s => s.report()) ?? []
       })),
+      steps:simulator.steps
     };
+    //console.log("RESULTADOS DE LA SIMULACION: ",results)
 
     const stats = {
       durationProvided: duration,
+      timeUnit: timeUnit,
       nodesCount: (processDef.nodes || []).length,
       edgesCount: (processDef.edges || []).length,
     };

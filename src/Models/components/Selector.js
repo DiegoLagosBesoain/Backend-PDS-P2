@@ -34,7 +34,9 @@ class Selector extends Component {
 
   /** Un componente de salida pide elementos al selector */
   request(time, cantidad = 1) {
+
   const edgesIn = this.simulator.processDef.edges.filter(e => e.to === this.node.id);
+  const edgesOut = this.simulator.processDef.edges.filter(e => e.from === this.id);
   console.log("le estan pidiendo al selector", cantidad);
   if (this.failed) {
     console.log(`[t=${time}] ⚠️ Selector ${this.id} está en falla, no puede entregar elementos`);
@@ -46,115 +48,149 @@ class Selector extends Component {
     return null;
   }
 
-  const entregados = [];
-  const entradas = this.ordenEntradas || [];
 
-  switch (this.strategy) {
-    case "prioridad":
-      // Para cada entrada en orden de prioridad: extraer de a 1 hasta que la entrada se agote o se complete la cantidad.
-      for (let entrada of entradas) {
-        if (entregados.length >= cantidad) break;
+    if (edgesIn.length === 0) {
+      console.log(`[t=${time}] ⚠️ Selector ${this.id} no tiene entradas conectadas`);
+      return null;
+    }
 
-        const edge = edgesIn.find(e => e.targetHandle === entrada);
-        if (!edge) continue;
+    const entregados = [];
+    const entradas = this.ordenEntradas || [];
 
-        const comp = this.simulator.components[edge.from];
-        if (!comp) continue;
+    switch (this.strategy) {
+      case "prioridad":
+        // Para cada entrada en orden de prioridad: extraer de a 1 hasta que la entrada se agote o se complete la cantidad.
+        for (let entrada of entradas) {
+          if (entregados.length >= cantidad) break;
 
-        // Si el componente no tiene elementos (count === 0) saltamos
-        while (entregados.length < cantidad && typeof comp.count === "function" && comp.count() > 0) {
+          const edge = edgesIn.find(e => e.targetHandle === entrada);
+          if (!edge) continue;
+
+          const comp = this.simulator.components[edge.from];
+          if (!comp) continue;
+
+          // Si el componente no tiene elementos (count === 0) saltamos
+          while (entregados.length < cantidad && typeof comp.count === "function" && comp.count() > 0) {
+            const res = comp.request?.(time, 1);
+            if (!res) break;
+
+            if (Array.isArray(res)) {
+              // si devuelve array, empujar elementos (puede pasar que devuelva [element] por compatibilidad)
+              for (const e of res) {
+                if (entregados.length >= cantidad) break;
+                if (e) {
+                  entregados.push(e);
+
+                  // ✅ Notificar sensores de entrada al Selector
+                  this.notifySensors("entrada", { time, elemento: e, port: entrada });
+                }
+              }
+              // si devolvió elementos, continuar pidiendo hasta que se agote (según count) o complete cantidad
+              if (res.length === 0) break;
+            } else {
+              entregados.push(res);
+              this.notifySensors("entrada", { time, elemento: res, port: entrada });
+            }
+            if (!this.simulator.steps[time]){
+                this.simulator.steps[time]=[]
+              }
+            this.simulator.steps[time].push(`🎯 Selector ${this.id} tomó 1 elemento de ${edge.from} (${entrada}). Total entregados: ${entregados.length}`)
+            console.log(`[t=${time}] 🎯 Selector ${this.id} tomó 1 elemento de ${edge.from} (${entrada}). Total entregados: ${entregados.length}`);
+            
+          }
+          // cuando esta fuente se agote, pasamos a la siguiente prioridad
+        }
+        break;
+
+      case "orden":
+        // Round-robin: empezamos en this.lastIndex y vamos pidiendo de a 1 por entrada hasta completar cantidad.
+        if (!entradas.length) break;
+        const n = entradas.length;
+        // Asegurarnos de que lastIndex está definido y en rango
+        let startIndex = (typeof this.lastIndex === "number" ? this.lastIndex : 0) % n;
+        let scanned = 0; // contaremos entradas consecutivas sin entrega; si llegamos a n, no hay más elementos
+        let idx = startIndex;
+
+        while (entregados.length < cantidad && scanned < n) {
+          const entrada = entradas[idx];
+          const edge = edgesIn.find(e => e.targetHandle === entrada);
+          idx = (idx + 1) % n; // próximo índice para la siguiente iteración
+          // si no hay edge para este handle, incrementar scanned y continuar
+          if (!edge) {
+            scanned++;
+            continue;
+          }
+
+          const comp = this.simulator.components[edge.from];
+          if (!comp) {
+            scanned++;
+            continue;
+          }
+
+          // pedir de a 1
           const res = comp.request?.(time, 1);
-          if (!res) break;
+          if (!res) {
+            // si no devolvió nada, contar como escaneo sin entrega
+            scanned++;
+            continue;
+          }
 
+          // Si se obtuvo algo, resetear scanned y agregar elementos (soportamos array o single)
+          scanned = 0;
           if (Array.isArray(res)) {
-            // si devuelve array, empujar elementos (puede pasar que devuelva [element] por compatibilidad)
             for (const e of res) {
               if (entregados.length >= cantidad) break;
-              if (e) entregados.push(e);
+              if (e) {
+                entregados.push(e);
+                this.notifySensors("entrada", { time, elemento: e, port: entrada });
+              }
             }
-            // si devolvió elementos, continuar pidiendo hasta que se agote (según count) o complete cantidad
-            if (res.length === 0) break;
+            if (!this.simulator.steps[time]){
+                this.simulator.steps[time]=[]
+              }
+            this.simulator.steps[time].push(`🔄 Selector ${this.id} tomó ${res.length} elemento(s) de ${edge.from} (${entrada})`)
+            console.log(`[t=${time}] 🔄 Selector ${this.id} tomó ${res.length} elemento(s) de ${edge.from} (${entrada})`);
           } else {
             entregados.push(res);
+            if (!this.simulator.steps[time]){
+                this.simulator.steps[time]=[]
+              }
+            this.simulator.steps[time].push(`🔄 Selector ${this.id} tomó 1 elemento de ${edge.from} (${entrada})`)
+            console.log(`[t=${time}] 🔄 Selector ${this.id} tomó 1 elemento de ${edge.from} (${entrada})`);
+            
+            this.notifySensors("entrada", { time, elemento: res, port: entrada });
           }
 
-          console.log(`[t=${time}] 🎯 Selector ${this.id} tomó 1 elemento de ${edge.from} (${entrada}). Total entregados: ${entregados.length}`);
-          
+          // actualizar lastIndex para que la próxima llamada empiece después del último índice usado
+          this.lastIndex = idx % n;
         }
-        // cuando esta fuente se agote, pasamos a la siguiente prioridad
-      }
-      break;
+        break;
 
-    case "orden":
-      // Round-robin: empezamos en this.lastIndex y vamos pidiendo de a 1 por entrada hasta completar cantidad.
-      if (!entradas.length) break;
-      const n = entradas.length;
-      // Asegurarnos de que lastIndex está definido y en rango
-      let startIndex = (typeof this.lastIndex === "number" ? this.lastIndex : 0) % n;
-      let scanned = 0; // contaremos entradas consecutivas sin entrega; si llegamos a n, no hay más elementos
-      let idx = startIndex;
+      default:
+        console.warn(`[t=${time}] Selector ${this.id} estrategia desconocida: ${this.strategy}`);
+    }
 
-      while (entregados.length < cantidad && scanned < n) {
-        const entrada = entradas[idx];
-        const edge = edgesIn.find(e => e.targetHandle === entrada);
-        idx = (idx + 1) % n; // próximo índice para la siguiente iteración
-        // si no hay edge para este handle, incrementar scanned y continuar
-        if (!edge) {
-          scanned++;
-          continue;
+    if (entregados.length === 0) {
+      console.log(`[t=${time}] ⚠️ Selector ${this.id} no encontró elementos disponibles en ninguna entrada`);
+      return null;
+    }
+
+    if (entregados.length < cantidad) {
+      console.log(`[t=${time}] ⚠️ Selector ${this.id} solo pudo entregar ${entregados.length}/${cantidad}`);
+    }
+    entregados.forEach(el => {
+      edgesOut.forEach(edge => {
+        this.notifySensors("salida", { time, elemento: el, port: edge.sourceHandle || "out-0" });
+      });
+      this.simulator.register[el.id][`${this.id}-${this.type}`] = time;
+    });
+    if (!this.simulator.steps[time]){
+              this.simulator.steps[time]=[]
         }
-
-        const comp = this.simulator.components[edge.from];
-        if (!comp) {
-          scanned++;
-          continue;
-        }
-
-        // pedir de a 1
-        const res = comp.request?.(time, 1);
-        if (!res) {
-          // si no devolvió nada, contar como escaneo sin entrega
-          scanned++;
-          continue;
-        }
-
-        // Si se obtuvo algo, resetear scanned y agregar elementos (soportamos array o single)
-        scanned = 0;
-        if (Array.isArray(res)) {
-          for (const e of res) {
-            if (entregados.length >= cantidad) break;
-            if (e) entregados.push(e);
-          }
-          console.log(`[t=${time}] 🔄 Selector ${this.id} tomó ${res.length} elemento(s) de ${edge.from} (${entrada})`);
-        } else {
-          entregados.push(res);
-          console.log(`[t=${time}] 🔄 Selector ${this.id} tomó 1 elemento de ${edge.from} (${entrada})`);
-        }
-
-        // actualizar lastIndex para que la próxima llamada empiece después del último índice usado
-        this.lastIndex = idx % n;
-      }
-      break;
-
-    default:
-      console.warn(`[t=${time}] Selector ${this.id} estrategia desconocida: ${this.strategy}`);
+    this.simulator.steps[time].push(`Selector ${this.id} entregó ${entregados}`)
+    console.log(`[t=${time}] Selector ${this.id} entregó`, entregados);
+    return entregados;
   }
-
-  if (entregados.length === 0) {
-    console.log(`[t=${time}] ⚠️ Selector ${this.id} no encontró elementos disponibles en ninguna entrada`);
-    return null;
-  }
-
-  if (entregados.length < cantidad) {
-    console.log(`[t=${time}] ⚠️ Selector ${this.id} solo pudo entregar ${entregados.length}/${cantidad}`);
-  }
-  entregados.forEach((elemento)=>{
-    
-    this.simulator.register[elemento.id][`${this.id}-${this.type}`]=time
-  })
-  console.log(`[t=${time}] Selector ${this.id} entregó`, entregados);
-  return entregados;
-}
 
 
   /** 🔔 Aviso de disponibilidad */
@@ -175,6 +211,22 @@ class Selector extends Component {
       }
     }
   }
+
+
+  isActive() {
+    // El selector se considera activo si:
+    // 1. No está en falla
+    return this.failed
+  }
+
+
+  // isActive() {
+  //   // El selector se considera activo si:
+  //   // 1. No está en falla
+  //   // 2. Tiene elementos disponibles en sus entradas
+  //   return !this.failed && this.count() > 0;
+  // }
+
 }
 
 module.exports = Selector;

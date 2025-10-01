@@ -58,11 +58,11 @@ class Transporter extends Component {
       if (!comp?.request) continue;
       
       if (this.tipo=="movil"){
-        if (this.capacidad>=this.buffer.length) {
+        if (this.capacidad>=this.buffer.length&&comp.count()>0) {
         elems = elems.concat(comp.request(time, Math.min(comp.count(),this.capacidad), edge.sourceHandle))
         }
       }else{
-        if (time - this.lastInputTime >= this.t_min_entrada) {
+        if (time - this.lastInputTime >= this.t_min_entrada&&comp.count()>0) {
           elems=comp.request(time, 1)
         }
       }
@@ -85,6 +85,10 @@ class Transporter extends Component {
 
     if (this.tipo === "continuo") {
       if (time - this.lastInputTime < this.t_min_entrada) {
+        if (!this.simulator.steps[time]){
+              this.simulator.steps[time]=[]
+        }
+        this.simulator.steps[time].push(`❌ Transporter ${this.id} rechazó ${elemento.id}, demasiado pronto`)
         console.log(`[t=${time}] ❌ Transporter ${this.id} rechazó ${elemento.id}, demasiado pronto`);
         return;
       }
@@ -94,7 +98,10 @@ class Transporter extends Component {
       const arrivalTime = time + travelTime;
       this.simulator.schedule(time+this.t_min_entrada, () => this.requestFromInputs(time+this.t_min_entrada,"in"));
       this.simulator.schedule(arrivalTime, () => this.deliver([elemento], arrivalTime));
-      
+      if (!this.simulator.steps[time]){
+              this.simulator.steps[time]=[]
+        }
+      this.simulator.steps[time].push(`🚚 Transporter ${this.id} recogió ${elemento.id}, llegará en t=${arrivalTime}`)
       console.log(`[t=${time}] 🚚 Transporter ${this.id} recogió ${elemento.id}, llegará en t=${arrivalTime}`);
       
     }
@@ -102,7 +109,10 @@ class Transporter extends Component {
     else if (this.tipo === "movil") {
       this.buffer.push(elemento);
       console.log(`[t=${time}] 🚛 Transporter ${this.id} cargó ${elemento.id} (${this.buffer.length}/${this.capacidad})`);
-
+      if (!this.simulator.steps[time]){
+              this.simulator.steps[time]=[]
+        }
+      this.simulator.steps[time].push(`🚛 Transporter ${this.id} cargó ${elemento.id} (${this.buffer.length}/${this.capacidad})`)
       if (this.buffer.length >= this.capacidad) {
         this.depart(time);
         
@@ -133,6 +143,10 @@ class Transporter extends Component {
     this.simulator.schedule(arrivalTime, () => this.deliver(elementos, arrivalTime))
     this.simulator.schedule(arrivalTime, () => {this.busy=false});
     console.log(`[t=${time}] 🚛 Transporter ${this.id} partió con ${elementos.length} elementos, llegarán en t=${arrivalTime}`);
+    if (!this.simulator.steps[time]){
+              this.simulator.steps[time]=[]
+        }
+    this.simulator.steps[time].push(`🚛 Transporter ${this.id} partió con ${elementos.length} elementos, llegarán en t=${arrivalTime}`)
   }
 
   /** Entrega elementos a los componentes conectados */
@@ -151,13 +165,26 @@ class Transporter extends Component {
         // 👇 Notificar sensores de salida
         this.notifySensors("salida", { time, elemento: el, port: edge.sourceHandle }); // ✅ port para el Contador
       }
-
-      console.log(`[t=${time}] ✅ Transporter ${this.node.id} entregó ${el.id}`);
+    if (!this.simulator.steps[time]){
+              this.simulator.steps[time]=[]
+        }
+    this.simulator.steps[time].push(`✅ Transporter ${this.node.id} entregó ${el.id}`)
+    console.log(`[t=${time}] ✅ Transporter ${this.node.id} entregó ${el.id}`);
     
 
     }
-    if (this.tipo=="movil"){
-      this.requestFromInputs(time, "in")}
+    
+    this.requestFromInputs(time, "in")
+    
+  }
+
+  isActive() {
+    // Activo si:
+    // - No está en falla
+    // - Está ocupado transportando (busy = true)
+    // - O tiene elementos en el buffer
+    if (this.failed) return false;
+    return this.busy || this.buffer.length > 0;
   }
 }
 

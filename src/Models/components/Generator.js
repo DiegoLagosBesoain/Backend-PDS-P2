@@ -97,7 +97,11 @@ class Generator extends Component {
       };
 
       console.log(`[t=${this.simulator.clock}] 🎉 Generador ${this.id} (onDemand) creó ${elemento.type} (#${elemento.id})`);
-
+      
+      if (!this.simulator.steps[time]){
+        this.simulator.steps[time]=[]
+      }
+      this.simulator.steps[time].push(`🎉 Generador ${this.id} (onDemand) creó ${elemento.type} (#${elemento.id})`)
       // 🚨 Notificar sensores que hubo una salida
       this.notifySensors("salida", { port: "out-0", elemento });
 
@@ -150,7 +154,11 @@ class Generator extends Component {
     this.simulator.register[elemento.id]={"params":elemento.attributes}
     this.simulator.register[elemento.id][`${this.id}-${this.type}`]=this.simulator.clock
 
-    console.log(`[t=${this.simulator.clock}] 🎉 Generador ${this.id} creó ${elemento.type} (#${elemento.id})`); 
+    console.log(`[t=${this.simulator.clock}] 🎉 Generador ${this.id} creó ${elemento.type} (#${elemento.id})`);
+    if (!this.simulator.steps[this.simulator.clock]){
+        this.simulator.steps[this.simulator.clock]=[]
+      }
+    this.simulator.steps[this.simulator.clock].push(`🎉 Generador ${this.id} creó ${elemento.type} (#${elemento.id})`) 
 
     // 🚨 Notificar sensores que hubo una salida
     console.log("entrando a notify sensors")
@@ -186,6 +194,22 @@ class Generator extends Component {
       }
     });
   }
+
+
+  isActive() {
+    // Activo si:
+    // - No está en falla
+    // - No alcanzó el límite (si existe)
+    // - Está conectado a algo downstream (no es un generador “muerto”)
+    console.log("estoy entrando al isActive")
+    if (this.failed) return false;
+    if (this.params.limite && this.generatedCount >= this.params.limite) return false;
+
+    const edgesOut = this.simulator.processDef.edges.filter(e => e.from === this.node.id);
+    return edgesOut.length > 0;
+  }
+
+
   
 }
 
