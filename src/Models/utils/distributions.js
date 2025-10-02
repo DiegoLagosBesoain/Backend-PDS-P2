@@ -12,17 +12,18 @@ function sampleFromDistribution(distribucion) {
     case "fija":
     case "fijo":
     case "fixed":
-      return num(params.valor, num(params.value, 0));
+      return Math.max(num(params.valor, num(params.value, 0.1)),0.000000000001);
 
     case "uniforme":
     case "uniform":
       const min = num(params.min, 0);
       const max = num(params.max, 1);
-      return min + Math.random() * (max - min);
+      return Math.abs(min + Math.random() * (max - min));
 
     case "exponencial":
       // λ = 1/media
-      const lambda = num(params.lambda, 1);
+      const lambda = Math.max(num(params.lambda, 1),0.00000001);
+      
       return -Math.log(1 - Math.random()) / lambda;
 
     case "normal":
