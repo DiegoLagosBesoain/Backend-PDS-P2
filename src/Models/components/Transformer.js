@@ -31,12 +31,14 @@ class Transformer extends Component {
     /** Inicializar fallas al comienzo de la simulación */
   init() {
     super.init(); // activa fallas si están configuradas
+    console.log(this.failures)
     if (this.failures.length) {
       this.failures.forEach(f => this.scheduleFailure(f));
     }
   }
 
   scheduleFailure(failure) {
+    console.log(failure,"")
     const t_activacion = sampleFromDistribution(failure.dist_activacion);
     this.simulator.schedule(this.simulator.clock + t_activacion, () => this.startFailure(failure));
   }
@@ -46,13 +48,21 @@ class Transformer extends Component {
     //console.log("failure: ", failure)
     const t_duracion = sampleFromDistribution(failure.dist_duracion);
     //console.log("t_duracion: ", t_duracion)
-    console.log(`[t=${this.simulator.clock}] ❌ Transformer ${this.id} FALLÓ durante ${t_duracion}`);
+    console.log(`[t=${this.simulator.clock}] ❌ Transformer ${this.id} FALLARA durante ${t_duracion}`);
+    if (!this.simulator.steps[`${this.simulator.clock}`]) {
+      this.simulator.steps[`${this.simulator.clock}`] = [];
+    }
+    this.simulator.steps[`${this.simulator.clock}`].push(`❌ Transformer ${this.id} FALLARA durante ${t_duracion}`);
     this.simulator.schedule(this.simulator.clock + t_duracion, () => this.endFailure(failure));
   }
 
   endFailure(failure) {
     this.failed = false;
     console.log(`[t=${this.simulator.clock}] ✅ Transformer ${this.id} RECUPERADO`);
+    if (!this.simulator.steps[`${this.simulator.clock}`]) {
+      this.simulator.steps[`${this.simulator.clock}`] = [];
+    }
+    this.simulator.steps[`${this.simulator.clock}`].push(`✅ Transformer ${this.id} RECUPERADO`);
     this.scheduleFailure(failure);
   }
 
