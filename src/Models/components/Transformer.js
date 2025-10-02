@@ -126,7 +126,7 @@ class Transformer extends Component {
 
     // 3️⃣ Arranca proceso
     consumed.forEach((elemento)=>{
-      this.notifySensors("entrada", { port: inputHandle, elemento });
+      this.notifySensors("entrada", { port: elemento.type, elemento });
       this.simulator.register[elemento.id][`${this.id}-${this.type}`]=time
     })
     this.busy = true;
