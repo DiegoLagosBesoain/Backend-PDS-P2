@@ -80,7 +80,7 @@ class Transformer extends Component {
     this.buffers[inputHandle].push(elemento);
     // ✅ Notificar sensores de ENTRADA
 
-    this.notifySensors("entrada", { port: inputHandle, elemento });
+    
 
     // programar intento de procesamiento
     this.simulator.schedule(time, () => this.tryStartProcessing(this.simulator.clock));
@@ -126,6 +126,7 @@ class Transformer extends Component {
 
     // 3️⃣ Arranca proceso
     consumed.forEach((elemento)=>{
+      this.notifySensors("entrada", { port: inputHandle, elemento });
       this.simulator.register[elemento.id][`${this.id}-${this.type}`]=time
     })
     this.busy = true;
