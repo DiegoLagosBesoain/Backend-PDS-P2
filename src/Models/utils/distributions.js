@@ -18,13 +18,13 @@ function sampleFromDistribution(distribucion) {
     case "uniform":
       const min = num(params.min, 0);
       const max = num(params.max, 1);
-      return Math.abs(min + Math.random() * (max - min));
+      return Math.max(Math.abs(min + Math.random() * (max - min)),0.000000000001);
 
     case "exponencial":
       // λ = 1/media
       const lambda = Math.max(num(params.lambda, 1),0.00000001);
       
-      return -Math.log(1 - Math.random()) / lambda;
+      return Math.max(-Math.log(1 - Math.random()) / lambda,0.000000000001);
 
     case "normal":
       // Box-Muller
@@ -34,7 +34,7 @@ function sampleFromDistribution(distribucion) {
       while (u === 0) u = Math.random();
       while (v === 0) v = Math.random();
       const z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-      return Math.abs(mu + sigma * z);
+      return Math.max(Math.abs(mu + sigma * z),0.000000000001);
 
     default:
       console.warn(`⚠️ Distribución desconocida: ${tipo}, usando 1`);
