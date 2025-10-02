@@ -30,7 +30,6 @@ class Transformer extends Component {
 
     /** Inicializar fallas al comienzo de la simulación */
   init() {
-    super.init(); // activa fallas si están configuradas
     console.log(this.failures)
     if (this.failures.length) {
       this.failures.forEach(f => this.scheduleFailure(f));
